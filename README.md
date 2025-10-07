@@ -15,7 +15,7 @@ Un simulador interactivo de redes que permite visualizar cómo los paquetes viaj
 
 ## 🚀 Demo en Vivo
 
-👉 [Ver Demo](https://TU-USUARIO.github.io/network-simulator/)
+👉 [Ver Demo](https://traficored.netlify.app)
 
 ## 🎮 Cómo Usar
 
