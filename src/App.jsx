@@ -33,7 +33,7 @@ export default function NetworkSimulator() {
             return { ...p, status: 'delivered', progress: 1 };
           }
 
-          const nextHop = currentNode.routingTable[p.destination];
+          const nextHop = currentNode.routingTable?.[p.destination];
           if (!nextHop) {
             setStats(s => ({ ...s, dropped: s.dropped + 1 }));
             return { ...p, status: 'dropped' };
