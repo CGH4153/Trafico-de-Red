@@ -72,7 +72,7 @@ network-simulator/
 ├── index.html           # HTML base
 ├── vite.config.js       # Configuración de Vite
 ├── package.json         # Dependencias
-└── README.md           # Este archivo
+└── README.md            # Este archivo
 ```
 
 ## 🎯 Conceptos de Redes Implementados
