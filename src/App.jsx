@@ -20,6 +20,7 @@ export default function NetworkSimulator() {
   const [dragging, setDragging] = useState(null);
   const [linkMode, setLinkMode] = useState(false);
   const [linkStart, setLinkStart] = useState(null);
+  const [autoRouting, setAutoRouting] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -107,10 +108,82 @@ export default function NetworkSimulator() {
     ));
   };
 
+  const calculateShortestPath = () => {
+    const graph = {};
+    nodes.forEach(n => graph[n.id] = {});
+    links.forEach(l => {
+      graph[l.from][l.to] = 1;
+      graph[l.to][l.from] = 1;
+    });
+
+    const newNodes = nodes.map(source => {
+      const distances = {};
+      const previous = {};
+      const unvisited = new Set(nodes.map(n => n.id));
+      
+      nodes.forEach(n => distances[n.id] = Infinity);
+      distances[source.id] = 0;
+
+      while (unvisited.size > 0) {
+        let current = null;
+        let minDist = Infinity;
+        unvisited.forEach(node => {
+          if (distances[node] < minDist) {
+            minDist = distances[node];
+            current = node;
+          }
+        });
+
+        if (current === null || distances[current] === Infinity) break;
+        unvisited.delete(current);
+
+        Object.keys(graph[current] || {}).forEach(neighbor => {
+          if (unvisited.has(neighbor)) {
+            const alt = distances[current] + graph[current][neighbor];
+            if (alt < distances[neighbor]) {
+              distances[neighbor] = alt;
+              previous[neighbor] = current;
+            }
+          }
+        });
+      }
+
+      const routingTable = {};
+      nodes.forEach(dest => {
+        if (dest.id !== source.id && distances[dest.id] !== Infinity) {
+          let next = dest.id;
+          while (previous[next] && previous[next] !== source.id) {
+            next = previous[next];
+          }
+          if (previous[next] === source.id) {
+            routingTable[dest.id] = next;
+          }
+        }
+      });
+
+      return { ...source, routingTable };
+    });
+
+    setNodes(newNodes);
+  };
+
+  useEffect(() => {
+    if (autoRouting && links.length > 0) {
+      calculateShortestPath();
+    }
+  }, [links, autoRouting]);
+
   const deleteNode = (nodeId) => {
     setNodes(nodes.filter(n => n.id !== nodeId));
     setLinks(links.filter(l => l.from !== nodeId && l.to !== nodeId));
     setSelectedNode(null);
+  };
+
+  const deleteLink = (from, to) => {
+    setLinks(links.filter(l => 
+      !(l.from === from && l.to === to) && 
+      !(l.from === to && l.to === from)
+    ));
   };
 
   const getNodePosition = (nodeId) => {
@@ -135,11 +208,27 @@ export default function NetworkSimulator() {
 
   const handleMouseDown = (e, nodeId) => {
     e.stopPropagation();
-    setDragging(nodeId);
+    if (linkMode) {
+      if (!linkStart) {
+        setLinkStart(nodeId);
+      } else if (linkStart !== nodeId) {
+        const linkExists = links.some(l => 
+          (l.from === linkStart && l.to === nodeId) ||
+          (l.from === nodeId && l.to === linkStart)
+        );
+        if (!linkExists) {
+          setLinks([...links, { from: linkStart, to: nodeId }]);
+        }
+        setLinkStart(null);
+        setLinkMode(false);
+      }
+    } else {
+      setDragging(nodeId);
+    }
   };
 
   const handleMouseMove = (e) => {
-    if (!dragging) return;
+    if (!dragging || linkMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -159,20 +248,38 @@ export default function NetworkSimulator() {
           {links.map((link, i) => {
             const from = getNodePosition(link.from);
             const to = getNodePosition(link.to);
+            const midX = (from.x + to.x) / 2;
+            const midY = (from.y + to.y) / 2;
             return (
-              <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                    stroke="#4b5563" strokeWidth="2" />
+              <g key={i}>
+                <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                      stroke="#4b5563" strokeWidth="2" />
+                <circle cx={midX} cy={midY} r="8" fill="#ef4444" 
+                        className="cursor-pointer hover:fill-red-600"
+                        onClick={() => deleteLink(link.from, link.to)} />
+                <text x={midX} y={midY + 4} textAnchor="middle" 
+                      fill="white" fontSize="12" fontWeight="bold"
+                      pointerEvents="none">×</text>
+              </g>
             );
           })}
           
+          {linkStart && (
+            <circle cx={getNodePosition(linkStart).x} 
+                    cy={getNodePosition(linkStart).y} 
+                    r="35" fill="none" stroke="#fbbf24" strokeWidth="3"
+                    strokeDasharray="5,5" />
+          )}
+          
           {nodes.map(node => (
             <g key={node.id} onMouseDown={(e) => handleMouseDown(e, node.id)}
-               className="cursor-move">
+               className={linkMode ? "cursor-crosshair" : "cursor-move"}>
               <circle cx={node.x} cy={node.y} r="30"
                       fill={node.type === 'router' ? '#3b82f6' : '#10b981'}
-                      stroke={selectedNode === node.id ? '#fbbf24' : 'none'}
+                      stroke={selectedNode === node.id ? '#fbbf24' : 
+                             linkStart === node.id ? '#fbbf24' : 'none'}
                       strokeWidth="3"
-                      onClick={() => setSelectedNode(node.id)} />
+                      onClick={() => !linkMode && setSelectedNode(node.id)} />
               <text x={node.x} y={node.y + 5} textAnchor="middle"
                     fill="white" fontSize="14" fontWeight="bold"
                     pointerEvents="none">
@@ -213,6 +320,18 @@ export default function NetworkSimulator() {
               Host
             </button>
           </div>
+          <button 
+            onClick={() => {
+              setLinkMode(!linkMode);
+              setLinkStart(null);
+            }}
+            className={`w-full px-3 py-2 rounded text-sm font-medium ${
+              linkMode 
+                ? 'bg-yellow-600 hover:bg-yellow-700' 
+                : 'bg-gray-600 hover:bg-gray-700'
+            }`}>
+            {linkMode ? '🔗 Click en 2 nodos para conectar' : '➕ Crear Link'}
+          </button>
         </div>
 
         <div className="space-y-2">
@@ -239,9 +358,20 @@ export default function NetworkSimulator() {
 
         {selectedNode && (
           <div className="space-y-2 border-t border-gray-700 pt-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Settings className="w-4 h-4" /> Tabla de Ruteo: {selectedNode}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Settings className="w-4 h-4" /> Tabla de Ruteo: {selectedNode}
+              </h3>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={autoRouting}
+                  onChange={(e) => setAutoRouting(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                Auto
+              </label>
+            </div>
             {nodes.filter(n => n.id !== selectedNode).map(dest => {
               const current = nodes.find(n => n.id === selectedNode);
               if (!current) return null;
@@ -250,8 +380,14 @@ export default function NetworkSimulator() {
                   <span className="text-sm w-12">{dest.id}:</span>
                   <select 
                     value={current.routingTable?.[dest.id] || ''}
-                    onChange={e => updateRoutingTable(selectedNode, dest.id, e.target.value)}
-                    className="flex-1 bg-gray-700 px-2 py-1 rounded text-sm">
+                    onChange={e => {
+                      setAutoRouting(false);
+                      updateRoutingTable(selectedNode, dest.id, e.target.value);
+                    }}
+                    disabled={autoRouting}
+                    className={`flex-1 px-2 py-1 rounded text-sm ${
+                      autoRouting ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-700'
+                    }`}>
                     <option value="">-</option>
                     {nodes.filter(n => n.id !== selectedNode).map(n => (
                       <option key={n.id} value={n.id}>{n.id}</option>
