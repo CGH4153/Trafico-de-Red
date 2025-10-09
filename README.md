@@ -127,7 +127,6 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ### Paquetes en Tránsito
 *Visualización de paquetes viajando por la red*
-![Paquetes en Tránsito](screenshots/routing.mp4)
 
 ---
 
