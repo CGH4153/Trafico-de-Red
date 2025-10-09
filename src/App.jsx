@@ -113,13 +113,6 @@ export default function NetworkSimulator() {
     setSelectedNode(null);
   };
 
-  const deleteLink = (from, to) => {
-    setLinks(links.filter(l => 
-      !(l.from === from && l.to === to) && 
-      !(l.from === to && l.to === from)
-    ));
-  };
-
   const getNodePosition = (nodeId) => {
     const node = nodes.find(n => n.id === nodeId);
     return node ? { x: node.x, y: node.y } : { x: 0, y: 0 };
@@ -142,27 +135,11 @@ export default function NetworkSimulator() {
 
   const handleMouseDown = (e, nodeId) => {
     e.stopPropagation();
-    if (linkMode) {
-      if (!linkStart) {
-        setLinkStart(nodeId);
-      } else if (linkStart !== nodeId) {
-        const linkExists = links.some(l => 
-          (l.from === linkStart && l.to === nodeId) ||
-          (l.from === nodeId && l.to === linkStart)
-        );
-        if (!linkExists) {
-          setLinks([...links, { from: linkStart, to: nodeId }]);
-        }
-        setLinkStart(null);
-        setLinkMode(false);
-      }
-    } else {
-      setDragging(nodeId);
-    }
+    setDragging(nodeId);
   };
 
   const handleMouseMove = (e) => {
-    if (!dragging || linkMode) return;
+    if (!dragging) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -182,38 +159,20 @@ export default function NetworkSimulator() {
           {links.map((link, i) => {
             const from = getNodePosition(link.from);
             const to = getNodePosition(link.to);
-            const midX = (from.x + to.x) / 2;
-            const midY = (from.y + to.y) / 2;
             return (
-              <g key={i}>
-                <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                      stroke="#4b5563" strokeWidth="2" />
-                <circle cx={midX} cy={midY} r="8" fill="#ef4444" 
-                        className="cursor-pointer hover:fill-red-600"
-                        onClick={() => deleteLink(link.from, link.to)} />
-                <text x={midX} y={midY + 4} textAnchor="middle" 
-                      fill="white" fontSize="12" fontWeight="bold"
-                      pointerEvents="none">×</text>
-              </g>
+              <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                    stroke="#4b5563" strokeWidth="2" />
             );
           })}
           
-          {linkStart && (
-            <circle cx={getNodePosition(linkStart).x} 
-                    cy={getNodePosition(linkStart).y} 
-                    r="35" fill="none" stroke="#fbbf24" strokeWidth="3"
-                    strokeDasharray="5,5" />
-          )}
-          
           {nodes.map(node => (
             <g key={node.id} onMouseDown={(e) => handleMouseDown(e, node.id)}
-               className={linkMode ? "cursor-crosshair" : "cursor-move"}>
+               className="cursor-move">
               <circle cx={node.x} cy={node.y} r="30"
                       fill={node.type === 'router' ? '#3b82f6' : '#10b981'}
-                      stroke={selectedNode === node.id ? '#fbbf24' : 
-                             linkStart === node.id ? '#fbbf24' : 'none'}
+                      stroke={selectedNode === node.id ? '#fbbf24' : 'none'}
                       strokeWidth="3"
-                      onClick={() => !linkMode && setSelectedNode(node.id)} />
+                      onClick={() => setSelectedNode(node.id)} />
               <text x={node.x} y={node.y + 5} textAnchor="middle"
                     fill="white" fontSize="14" fontWeight="bold"
                     pointerEvents="none">
@@ -254,18 +213,6 @@ export default function NetworkSimulator() {
               Host
             </button>
           </div>
-          <button 
-            onClick={() => {
-              setLinkMode(!linkMode);
-              setLinkStart(null);
-            }}
-            className={`w-full px-3 py-2 rounded text-sm font-medium ${
-              linkMode 
-                ? 'bg-yellow-600 hover:bg-yellow-700' 
-                : 'bg-gray-600 hover:bg-gray-700'
-            }`}>
-            {linkMode ? '🔗 Click en 2 nodos para conectar' : '➕ Crear Link'}
-          </button>
         </div>
 
         <div className="space-y-2">
