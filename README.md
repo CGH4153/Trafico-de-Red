@@ -119,6 +119,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ### Vista Principal
 *Captura de la interfaz principal mostrando routers y hosts conectados*
+https://github.com/user-attachments/assets/85d7b479-0698-4bbf-917b-d66614c4fb5a
 
 ### Configuración de Ruteo
 *Panel de control para configurar tablas de ruteo*
